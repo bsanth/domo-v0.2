@@ -1,15 +1,15 @@
 FROM alpine:latest AS base
 
-# Install Node.js
-RUN apk add --no-cache nodejs npm
+# Install Node.js and Yarn
+RUN apk add --no-cache nodejs yarn
 
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY dashboard/package.json dashboard/package-lock.json ./
-RUN npm ci
+# Copy package.json and yarn.lock
+COPY dashboard/package.json dashboard/yarn.lock* ./
+RUN yarn install --frozen-lockfile
 
 # Development image with hot reload support
 FROM base AS development
@@ -19,7 +19,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY dashboard/public ./public
 COPY dashboard/src ./src
 COPY dashboard/package.json ./package.json
-COPY dashboard/package-lock.json ./package-lock.json
+COPY dashboard/yarn.lock* ./yarn.lock
 COPY dashboard/next.config.ts ./next.config.ts
 COPY dashboard/tsconfig.json ./tsconfig.json
 COPY dashboard/next-env.d.ts ./next-env.d.ts
@@ -29,14 +29,14 @@ COPY dashboard/eslint.config.mjs ./eslint.config.mjs
 EXPOSE 3000
 
 # Run development server with turbopack (hot reload)
-CMD ["npm", "run", "dev"]
+CMD ["yarn", "dev"]
 
 # Production build (not used for development but included for completeness)
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY dashboard/ ./
-RUN npm run build
+RUN yarn build
 
 # Production image
 FROM base AS production
