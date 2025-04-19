@@ -1,0 +1,21 @@
+FROM ghcr.io/blakeblackshear/frigate:stable
+
+# Install Node.js and npm
+RUN apt-get update && apt-get install -y \
+    curl \
+    && curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory for web development
+WORKDIR /opt/frigate/web
+
+# Copy package.json and package-lock.json for dependency installation
+COPY ./frigate/web/package*.json ./
+
+# Install dependencies (commented out as we'll use live_update in tiltfile)
+# RUN npm install
+
+# Set back to main directory
+WORKDIR /opt/frigate 

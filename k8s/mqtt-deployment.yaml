@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mqtt
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mqtt
+  template:
+    metadata:
+      labels:
+        app: mqtt
+    spec:
+      containers:
+        - name: mqtt
+          image: eclipse-mosquitto:2
+          ports:
+            - containerPort: 1883
+          args:
+            - "/usr/local/bin/mosquitto"
+            - "-c"
+            - "/mosquitto-no-auth.conf"
+          volumeMounts:
+            - name: mqtt-config
+              mountPath: /mosquitto-no-auth.conf
+              subPath: mosquitto-no-auth.conf
+      volumes:
+        - name: mqtt-config
+          configMap:
+            name: mqtt-config
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mqtt-config
+data:
+  mosquitto-no-auth.conf: |
+    listener 1883
+    allow_anonymous true
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mqtt
+spec:
+  selector:
+    app: mqtt
+  ports:
+    - protocol: TCP
+      port: 1883
+      targetPort: 1883
+  type: ClusterIP 

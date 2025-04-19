@@ -48,3 +48,26 @@ k8s_resource(
     labels=['app'],
     resource_deps=[]
 ) 
+
+# Build custom Frigate image
+docker_build('frigate-dev', '.', dockerfile='Dockerfile.frigate',
+    live_update=[
+        sync('frigate/web', '/opt/frigate/web'),
+        run('cd /opt/frigate/web && npm install', trigger=['frigate/web/package.json']),
+        run('cd /opt/frigate/web && npm run build', trigger=['frigate/web/src'])
+    ]
+)
+
+# Load and modify the Kubernetes manifests
+original = read_yaml_stream('k8s/frigate-deployment.yaml')
+for doc in original:
+    if doc.get('kind') == 'Deployment':
+        doc['spec']['template']['spec']['containers'][0]['image'] = 'frigate-dev'
+
+k8s_yaml(encode_yaml_stream(original))
+
+# Define local port forwarding for the Frigate UI
+k8s_resource('frigate', 
+    port_forwards=5000,
+    labels=['frigate']
+)

@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frigate-config
+data:
+  config.yml: |
+    mqtt:
+      host: mqtt
+      port: 1883
+      user: mqtt
+      password: mqtt
+    database:
+      path: /data/frigate.db
+    cameras:
+      test_camera:
+        ffmpeg:
+          global_args: -hide_banner -loglevel warning
+          input_args:
+            - -rtsp_transport
+            - tcp
+            - -stimeout
+            - "5000000"
+          inputs:
+            - path: rtsp://tapoadmin:tapopass@192.168.86.21/stream1
+              roles:
+                - detect
+                - record
+        detect:
+          enabled: true
+        record:
+          enabled: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frigate
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frigate
+  template:
+    metadata:
+      labels:
+        app: frigate
+    spec:
+      initContainers:
+        - name: config-init
+          image: busybox
+          command: ['sh', '-c', 'cp /config-ro/config.yml /config/config.yml']
+          volumeMounts:
+            - name: config-ro
+              mountPath: /config-ro
+            - name: config-rw
+              mountPath: /config
+      containers:
+        - name: frigate
+          image: ghcr.io/blakeblackshear/frigate:stable
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - mountPath: /config
+              name: config-rw
+            - mountPath: /media/frigate
+              name: recordings
+            - mountPath: /tmp/cache
+              name: cache
+            - mountPath: /data
+              name: database
+          securityContext:
+            privileged: true  # Required for hardware acceleration
+      volumes:
+        - name: config-ro
+          configMap:
+            name: frigate-config
+            items:
+              - key: config.yml
+                path: config.yml
+        - name: config-rw
+          emptyDir: {}
+        - name: recordings
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: database
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frigate
+spec:
+  selector:
+    app: frigate
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
