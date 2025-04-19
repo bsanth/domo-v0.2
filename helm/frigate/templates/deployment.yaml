@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "frigate.fullname" . }}
+  labels:
+    {{- include "frigate.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "frigate.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "frigate.selectorLabels" . | nindent 8 }}
+    spec:
+      initContainers:
+        - name: config-init
+          image: busybox
+          command: ['sh', '-c', 'cp /config-ro/config.yml /config/config.yml']
+          volumeMounts:
+            - name: config-ro
+              mountPath: /config-ro
+            - name: config-rw
+              mountPath: /config
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /config
+              name: config-rw
+            - mountPath: /media/frigate
+              name: recordings
+            - mountPath: /tmp/cache
+              name: cache
+            - mountPath: /data
+              name: database
+          securityContext:
+            privileged: true
+      volumes:
+        - name: config-ro
+          configMap:
+            name: {{ include "frigate.fullname" . }}-config
+            items:
+              - key: config.yml
+                path: config.yml
+        - name: config-rw
+          emptyDir: {}
+        - name: recordings
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "frigate.fullname" . }}-recordings
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: cache
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "frigate.fullname" . }}-cache
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: database
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "frigate.fullname" . }}-database
+          {{- else }}
+          emptyDir: {}
+          {{- end }} 

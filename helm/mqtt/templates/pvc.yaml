@@ -1,0 +1,14 @@
+{{- if .Values.config.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mqtt.fullname" . }}-data
+  labels:
+    {{- include "mqtt.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.config.persistence.size }}
+{{- end }} 

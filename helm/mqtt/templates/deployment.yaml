@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mqtt.fullname" . }}
+  labels:
+    {{- include "mqtt.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mqtt.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "mqtt.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: mqtt
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          args:
+            - "/usr/sbin/mosquitto"
+            - "-c"
+            - "/mosquitto-no-auth.conf"
+          volumeMounts:
+            - name: mqtt-config
+              mountPath: /mosquitto-no-auth.conf
+              subPath: mosquitto-no-auth.conf
+            {{- if .Values.config.persistence.enabled }}
+            - name: mqtt-data
+              mountPath: /mosquitto/data
+            {{- end }}
+      volumes:
+        - name: mqtt-config
+          configMap:
+            name: {{ include "mqtt.fullname" . }}-config
+        {{- if .Values.config.persistence.enabled }}
+        - name: mqtt-data
+          persistentVolumeClaim:
+            claimName: {{ include "mqtt.fullname" . }}-data
+        {{- end }} 

@@ -28,7 +28,7 @@ docker_build(
     ]
 )
 
-# Deploy with Helm
+# Deploy dashboard with Helm
 k8s_yaml(helm(
     'helm/dashboard',
     # Set development mode in Helm
@@ -41,13 +41,28 @@ k8s_yaml(helm(
     ]
 ))
 
-# Port forward to access the application
+# Port forward to access the dashboard
 k8s_resource(
     'chart-dashboard',
     port_forwards=['3000:3000'],
     labels=['app'],
     resource_deps=[]
-) 
+)
+
+# Deploy MQTT with Helm
+k8s_yaml(helm(
+    'helm/mqtt',
+    values=['./helm/mqtt/values.yaml'],
+    set=[
+        'config.persistence.enabled=false',  # Disable persistence in development
+    ]
+))
+
+# Port forward MQTT
+k8s_resource('chart-mqtt',
+    port_forwards=['1883:1883'],
+    labels=['mqtt']
+)
 
 # Build custom Frigate image
 docker_build('frigate-dev', '.', dockerfile='Dockerfile.frigate',
@@ -58,16 +73,20 @@ docker_build('frigate-dev', '.', dockerfile='Dockerfile.frigate',
     ]
 )
 
-# Load and modify the Kubernetes manifests
-original = read_yaml_stream('k8s/frigate-deployment.yaml')
-for doc in original:
-    if doc.get('kind') == 'Deployment':
-        doc['spec']['template']['spec']['containers'][0]['image'] = 'frigate-dev'
-
-k8s_yaml(encode_yaml_stream(original))
+# Deploy Frigate with Helm
+k8s_yaml(helm(
+    'helm/frigate',
+    values=['./helm/frigate/values.yaml'],
+    set=[
+        'image.repository=frigate-dev',
+        'image.tag=latest',
+        'image.pullPolicy=Never',  # Use local image
+        'persistence.enabled=false',  # Disable persistence in development
+    ]
+))
 
 # Define local port forwarding for the Frigate UI
-k8s_resource('frigate', 
+k8s_resource('chart-frigate', 
     port_forwards=5000,
     labels=['frigate']
 )

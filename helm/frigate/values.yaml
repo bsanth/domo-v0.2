@@ -1,0 +1,47 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/blakeblackshear/frigate
+  tag: stable
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: ClusterIP
+  port: 5000
+
+mqtt:
+  host: mqtt
+  port: 1883
+  user: mqtt
+  password: mqtt
+
+persistence:
+  enabled: true
+  recordings:
+    size: 10Gi
+  cache:
+    size: 1Gi
+  database:
+    size: 1Gi
+
+cameras:
+  test_camera:
+    ffmpeg:
+      global_args: -hide_banner -loglevel warning
+      input_args:
+        - -rtsp_transport
+        - tcp
+        - -stimeout
+        - "5000000"
+      inputs:
+        - path: rtsp://tapoadmin:tapopass@192.168.86.21/stream1
+          roles:
+            - detect
+            - record
+    detect:
+      enabled: true
+    record:
+      enabled: true 
