@@ -1,0 +1,49 @@
+replicaCount: 1
+
+image:
+  repository: dashboard
+  tag: latest
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 3000
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Development settings for hot reloading
+development:
+  enabled: false
+  volumeMounts:
+    - name: app-source
+      mountPath: /app/src
+    - name: app-public
+      mountPath: /app/public
+  volumes:
+    - name: app-source
+      hostPath:
+        path: /Users/santhosh/repos/domo/domo-v0.2/dashboard/src
+        type: Directory
+    - name: app-public
+      hostPath:
+        path: /Users/santhosh/repos/domo/domo-v0.2/dashboard/public
+        type: Directory 
